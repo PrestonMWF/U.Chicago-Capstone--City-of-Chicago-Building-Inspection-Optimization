@@ -1,4 +1,4 @@
-library(tidyverse) #used for manipulating and data frames and map functions
+library(tidyverse) #used for manipulating data frames and map functions
 
 #Script used to aggregate city of chicago 311 data sets
 #Purpose is to have a count of how many incidents took place in various parts of the city
