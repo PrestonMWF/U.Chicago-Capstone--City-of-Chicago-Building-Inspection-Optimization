@@ -19,7 +19,7 @@ city_data_prep <- function(data){
   data %>%
     mutate(year = str_sub(string = completion_date, start = 1, end = 4)) %>%
     select(service_set, community_area, ward, police_district, year) %>%
-    filter(!is.na(ward) | !is.na(community_area) | !is.na(police_district)) 
+    filter(!is.na(ward) & !is.na(community_area) & !is.na(police_district)) 
 }
 
 #Using map_df to extract all 12 data frames from data list while combining them
@@ -53,7 +53,7 @@ ward_service_counts <- ward_service_counts %>%
 
 yearly_ward_counts <- service_requests %>%
   count(year, ward, service_set) %>%
-  filter(!is.na(ward) & (!is.na(year))) %>%
+  filter(!is.na(year)) %>%
   arrange(year)
 
 yearly_ward_counts <- yearly_ward_counts %>%
