@@ -18,8 +18,6 @@ building_footprints <- building_footprints %>%
   unite(col = "address", t_add1, pre_dir1, st_name1, st_type1, sep = " ") %>%
   mutate_all(tolower)
 
-write_csv(building_footprints, "City_of_Chicago_building_footprints.csv")
-
 #Loading building violations set for merge
 
 building_violations <- read.csv("City_of_Chicago_building_violations.csv", 
@@ -82,3 +80,5 @@ building_footprints <- building_communities %>%
   select(community_area, community) %>%
   bind_cols(building_footprints) %>%
   select(building, address, community_area, community, everything())
+
+write_csv(building_footprints, "City_of_Chicago_building_footprints.csv")
