@@ -18,8 +18,10 @@ data_list <- files %>%
 city_data_prep <- function(data){
   data %>%
     mutate(year = str_sub(string = completion_date, start = 1, end = 4)) %>%
-    select(service_set, community_area, ward, police_district, year) %>%
-    filter(!is.na(ward) & !is.na(community_area) & !is.na(police_district)) 
+    rename(address = street_address) %>%
+    mutate(address = tolower(address)) %>%
+    select(address, service_set, community_area, year) %>%
+    filter(!is.na(community_area)) 
 }
 
 #Using map_df to extract all 12 data frames from data list while combining them
@@ -35,26 +37,59 @@ service_requests <- map_df(1:11, function(x) as.data.frame(data_list[x])) %>%
 service_requests <- as.data.frame(data_list[12]) %>%
   mutate(year = str_sub(string = date_service_request_was_received, 
                         start = 1, end = 4)) %>%
-  select(service_set, community_area, ward, police_district, year) %>%
-  filter(!is.na(ward) & !is.na(community_area) & !is.na(police_district)) %>%
+  unite(col = "address", "address_street_number", "address_street_direction", 
+        "address_street_name", "address_street_suffix", sep = " ") %>%
+  mutate(address = tolower(address)) %>%
+  select(address, service_set, community_area, year) %>%
+  filter(!is.na(community_area)) %>%
   bind_rows(service_requests)
 
-#Counting the number of 311 requests by city ward and service type
+#Counting the number of 311 requests by city community_area and service type
 
-ward_service_counts <- service_requests %>%
-  count(ward, service_set)
+community_area_counts <- service_requests %>%
+  count(community_area, service_set)
 
-#Spreading data so each ward is individual row with respective count for each service
+#Spreading data so each community_area is individual row
+#Counts respective incidents for each service
 
-ward_service_counts <- ward_service_counts %>%
+community_area_counts <- community_area_counts %>%
   spread(key = "service_set", value = "n")
 
-#Making set with 311 counts by ward per year
+#Making set with 311 counts by community_area per year
 
-yearly_ward_counts <- service_requests %>%
-  count(year, ward, service_set) %>%
+yearly_community_area_counts <- service_requests %>%
+  count(year, community_area, service_set) %>%
   filter(!is.na(year)) %>%
   arrange(year)
 
-yearly_ward_counts <- yearly_ward_counts %>%
+yearly_community_area_counts <- yearly_community_area_counts %>%
   spread(key = "service_set", value = "n")
+
+
+
+
+
+
+
+#Counting the number of 311 requests by address and service type
+
+address_counts <- service_requests %>%
+  count(address, service_set)
+
+#Spreading data so each address is individual row
+#Counts respective incidents for each service
+
+address_counts <- address_counts %>%
+  spread(key = "service_set", value = "n") %>%
+  mutate_all(function(x) ifelse(is.na(x), 0, x))
+
+#Making set with 311 counts by address per year
+
+yearly_address_counts <- service_requests %>%
+  count(year, address, service_set) %>%
+  filter(!is.na(year)) %>%
+  arrange(year)
+
+yearly_address_counts <- yearly_address_counts %>%
+  spread(key = "service_set", value = "n") %>%
+  mutate_all(function(x) ifelse(is.na(x), 0, x))
