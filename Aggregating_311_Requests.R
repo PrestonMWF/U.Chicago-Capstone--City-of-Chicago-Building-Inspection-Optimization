@@ -55,6 +55,8 @@ community_area_counts <- service_requests %>%
 community_area_counts <- community_area_counts %>%
   spread(key = "service_set", value = "n")
 
+write.csv(community_area_counts, "Aggregated_311_Service_Requests_for_Community_Area.csv")
+
 #Making set with 311 counts by community_area per year
 
 yearly_community_area_counts <- service_requests %>%
@@ -63,7 +65,11 @@ yearly_community_area_counts <- service_requests %>%
   arrange(year)
 
 yearly_community_area_counts <- yearly_community_area_counts %>%
-  spread(key = "service_set", value = "n")
+  spread(key = "service_set", value = "n") %>%
+  mutate_all(function(x) ifelse(is.na(x), 0, x))
+
+write.csv(yearly_community_area_counts, 
+          "Yearly_311_Service_Requests_for_Community_Area.csv")
 
 #Counting the number of 311 requests by address and service type
 
@@ -77,6 +83,8 @@ address_counts <- address_counts %>%
   spread(key = "service_set", value = "n") %>%
   mutate_all(function(x) ifelse(is.na(x), 0, x))
 
+write.csv(address_counts, "Aggregated_311_Service_Requests_for_Addresses.csv")
+
 #Making set with 311 counts by address per year
 
 yearly_address_counts <- service_requests %>%
@@ -87,3 +95,6 @@ yearly_address_counts <- service_requests %>%
 yearly_address_counts <- yearly_address_counts %>%
   spread(key = "service_set", value = "n") %>%
   mutate_all(function(x) ifelse(is.na(x), 0, x))
+
+write.csv(yearly_address_counts, 
+          "Yearly_311_Service_Requests_for_Addresses.csv")
