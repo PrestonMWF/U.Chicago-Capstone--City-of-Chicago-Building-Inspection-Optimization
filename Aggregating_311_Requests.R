@@ -65,12 +65,6 @@ yearly_community_area_counts <- service_requests %>%
 yearly_community_area_counts <- yearly_community_area_counts %>%
   spread(key = "service_set", value = "n")
 
-
-
-
-
-
-
 #Counting the number of 311 requests by address and service type
 
 address_counts <- service_requests %>%
