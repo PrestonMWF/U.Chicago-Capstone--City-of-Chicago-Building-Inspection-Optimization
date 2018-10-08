@@ -1,6 +1,7 @@
 library(RSocrata) #used to connect to Open Data API URLs
 library(rgdal) #used to map buildings to a community area in chicago using lat/lon
 library(tidyverse) #used for manipulating data frames
+library(sqldf)
 
 #Script used to download all the necessary 311 and open data sets from portal
 #General open data site url: https://data.cityofchicago.org/
@@ -23,6 +24,7 @@ building_footprints <- building_footprints %>%
 building_violations <- read.csv("City_of_Chicago_building_violations.csv", 
                                 stringsAsFactors = F) %>%
   mutate(address = tolower(address))
+
 
 #Aggregating the building violations by address and violation type
 
@@ -52,6 +54,66 @@ building_footprints <- building_footprints %>%
                  registration_violations, 
                  permit_violations, 
                  periodic_violations), function(x) as.integer(ifelse(is.na(x), 0, x)))
+
+
+
+# Loading ordinance violaions
+
+ordinance_violations <- read.csv('City_of_Chicago_ordinance_violations.csv',
+                                 stringsAsFactors = F) %>%
+    mutate(ADDRESS = tolower(ADDRESS))
+
+# case dispostion breakdown
+
+sqldf("SELECT ordinance_violations.'CASE.DISPOSITION',  COUNT(*)
+      FROM ordinance_violations
+      GROUP BY ordinance_violations.'CASE.DISPOSITION'")
+
+# spreading dispostion outcomes
+
+address_ordinance_fines <- ordinance_violations %>%
+    mutate(ADDRESS = str_trim(ADDRESS, side = "both")) %>%
+    group_by(ADDRESS) %>%
+    summarize(total_fines = sum(IMPOSED.FINE)) %>%
+    rename_all(tolower)
+
+address_ordinance_dispositions <- ordinance_violations %>%
+    mutate(ADDRESS = str_trim(ADDRESS, side = "both")) %>%
+    count(ADDRESS, CASE.DISPOSITION) %>%
+    arrange(desc(n))
+
+address_ordinance_dispositions <- address_ordinance_dispositions %>%
+    spread(key = "CASE.DISPOSITION", value = n) %>%
+    mutate_all(tolower) %>%
+    mutate_at(vars(-ADDRESS), as.integer) %>%
+    rename_all(tolower) %>%
+    rename('null' = v1) %>%
+    rename('other' = `adjudication performance / other`) %>%
+    rename('dismissed' = `dismissed without prejudice`) %>%
+    rename('vacated' = `judgment vacated`) %>%
+    rename('not_liable' = `not liable`) %>%
+    rename('non_suit' = `non-suit`) %>%
+    rename_at(vars(-address), function(x) paste0(x, "_disposition"))
+
+# Merging number of ordinance violations to data set
+
+address_ordinance_dispositions <- address_ordinance_dispositions %>%
+    filter(!duplicated(address)) %>%
+    left_join(., address_ordinance_fines, by = "address")
+
+building_footprints <- building_footprints %>%
+    filter(!duplicated(address)) %>%
+    left_join(., address_ordinance_dispositions, by = "address") %>%
+    mutate_at(vars(null_disposition, 
+                   other_disposition,
+                   continuance_disposition,
+                   default_disposition,
+                   dismissed_disposition,
+                   vacated_disposition,
+                   liable_disposition,
+                   non_suit_disposition,
+                   not_liable_disposition,
+                   total_fines), function(x) as.integer(ifelse(is.na(x), 0, x)))
 
 #With set merged, moving to add the community areas for each address
 #These are needed to merge with other aggregated 311 sets
