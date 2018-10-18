@@ -63,11 +63,6 @@ ordinance_violations <- read.csv('City_of_Chicago_ordinance_violations.csv',
                                  stringsAsFactors = F) %>%
     mutate(ADDRESS = tolower(ADDRESS))
 
-# case dispostion breakdown
-
-sqldf("SELECT ordinance_violations.'CASE.DISPOSITION',  COUNT(*)
-      FROM ordinance_violations
-      GROUP BY ordinance_violations.'CASE.DISPOSITION'")
 
 # spreading dispostion outcomes
 
@@ -114,6 +109,33 @@ building_footprints <- building_footprints %>%
                    non_suit_disposition,
                    not_liable_disposition,
                    total_fines), function(x) as.integer(ifelse(is.na(x), 0, x)))
+
+# Load and merge Scofflaw List
+
+scofflaw_list <- read.csv('Scofflaw_List.csv',
+                                 stringsAsFactors = F)
+
+scofflaw_list <- scofflaw_list %>%
+    mutate(listed_scofflaw = 1) %>%
+    select(c(address, listed_scofflaw))
+
+building_footprints <- building_footprints %>%
+    filter(!duplicated(address)) %>%
+    left_join(., scofflaw_list, by = "address")
+
+# Load and merge problem landlords (We may want to merge this with the scofflaw list, as the information is very similar)
+# Need to investigate if the landlord address is the building they rent out or their business address
+
+problem_landlords <- read.csv('Problem_Landlords.csv',
+                              stringsAsFactors = F)
+
+problem_landlords <- problem_landlords %>%
+    mutate(listed_problem_landlord = 1) %>%
+    select(c(address, listed_problem_landlord))
+
+building_footprints <- building_footprints %>%
+    filter(!duplicated(address)) %>%
+    left_join(., problem_landlords, by = "address")
 
 #With set merged, moving to add the community areas for each address
 #These are needed to merge with other aggregated 311 sets
