@@ -1,3 +1,8 @@
+library(tidyverse)
+
+building_footprints <- read.csv("City_of_Chicago_building_footprints.csv", 
+                                stringsAsFactors = F)
+
 building_footprints %>%
   filter(total_fines == 0) %>%
   summarise(percent_not_fined = n() / nrow(building_footprints) * 100)
@@ -42,3 +47,35 @@ building_footprints %>%
   group_by(complaint_type) %>%
   count(count) %>%
   mutate(percent_wo_complaint = n / nrow(building_footprints) * 100)
+
+theme_set(
+  theme_minimal()
+)
+  
+community_buildings <- building_footprints %>%
+  filter(!is.na(community)) %>%
+  count(community) %>%
+  rename(total_buildings = n)
+
+community_buildings <- building_footprints %>%
+  filter(!is.na(community)) %>%
+  group_by(community) %>%
+  summarise(total_complaint_violations = sum(complaint_violations)) %>%
+  inner_join(x = .,y = community_buildings, by = "community")
+  
+community_buildings <- community_buildings %>%  
+  mutate(violations_per_building = round(total_complaint_violations / 
+                                         total_buildings, 3))
+
+community_buildings %>%
+  top_n(20, violations_per_building) %>%
+  filter(!is.na(community)) %>%
+  mutate(community = reorder(community, violations_per_building)) %>%
+  ggplot(aes(community, violations_per_building)) +
+  geom_col(fill = "dodgerblue2") +
+  coord_flip() +
+  labs(title = "Top 25 community areas by building complaint violations per capita",
+       subtitle = "West Garfield Park has most violations per capita of any community area in Chicago (violations / # buildings)", 
+       x = NULL)
+  
+  
