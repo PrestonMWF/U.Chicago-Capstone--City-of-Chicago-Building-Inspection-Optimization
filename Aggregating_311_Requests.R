@@ -17,7 +17,7 @@ data_list <- files %>%
 
 city_data_prep <- function(data){
   data %>%
-    mutate(year = str_sub(string = completion_date, start = 1, end = 4)) %>%
+    mutate(year = str_sub(string = creation_date, start = 1, end = 4)) %>%
     rename(address = street_address) %>%
     mutate(address = tolower(address)) %>%
     select(address, service_set, community_area, year) %>%
@@ -98,3 +98,4 @@ yearly_address_counts <- yearly_address_counts %>%
 
 write.csv(yearly_address_counts, 
           "Yearly_311_Service_Requests_for_Addresses.csv")
+
