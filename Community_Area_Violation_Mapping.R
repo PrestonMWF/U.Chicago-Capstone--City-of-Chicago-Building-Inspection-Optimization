@@ -1,4 +1,5 @@
 library(tidyverse) #used for manipulating data frames and ggplot2
+library(rgdal) #used to map buildings to a community area in chicago using lat/lon
 
 #Script used to map building violations by community area in Chicago
 
@@ -47,7 +48,7 @@ community_area_map <- community_area_map %>%
   mutate(community_area = as.numeric(community_area)) %>%
   left_join(x = ., y = community_buildings, by = "community_area")
 
-#developing maps for violations per building and total violations
+#developing maps for violations per building, total violations, and total buildings
 community_area_map %>%
   ggplot(aes(long, lat, group = group, fill = total_complaint_violations)) +
   geom_polygon() +
@@ -56,8 +57,19 @@ community_area_map %>%
   theme_void() +
   scale_fill_gradient(low = "dodgerblue2", high = "darkorange") +
   labs(title = "Map of total complaint violations by community area in Chicago",
-       subtitle = "Neighbourhoods on Chicago's Sotuh and West side show large incidences of violations",
+       subtitle = "Neighbourhoods on Chicago's South and West side show large incidences of violations",
        fill = "Total Violations")
+
+community_area_map %>%
+  ggplot(aes(long, lat, group = group, fill = total_buildings)) +
+  geom_polygon() +
+  geom_path(color = "white") +
+  coord_equal() +
+  theme_void() +
+  scale_fill_gradient(low = "dodgerblue2", high = "darkorange") +
+  labs(title = "Map of total number of building by community area in Chicago",
+       subtitle = "Neighbourhoods on Chicago's South and West side show high building concentrations",
+       fill = "Total Buildings")
 
 community_area_map %>%
   ggplot(aes(long, lat, group = group, fill = violations_per_building)) +
@@ -67,7 +79,26 @@ community_area_map %>%
   theme_void() +
   scale_fill_gradient(low = "dodgerblue2", high = "darkorange") +
   labs(title = "Map of violations per building by community area in Chicago",
-       subtitle = "Neighbourhoods on Chicago's Sotuh and West side show large incidences of violations",
+       subtitle = "Neighbourhoods on Chicago's South and West side show large incidences of violations",
        fill = "Violations per Building")
 
-
+#total violations and per building violations
+community_area_map %>%
+  select(long, lat, group, violations_per_building, total_complaint_violations) %>%
+  mutate(violations_per_building = scale(violations_per_building, 
+                                         center = T, scale = T),
+         total_complaint_violations = scale(total_complaint_violations, 
+                                            center = T, scale = T)) %>%
+  gather(key = "violation_type", value = "value", -long, -lat, -group) %>%
+  ggplot(aes(long, lat, group = group, fill = value)) +
+  geom_polygon() +
+  geom_path(color = "white") +
+  facet_wrap(facets = "violation_type") +
+  coord_equal() +
+  theme_minimal() +
+  scale_fill_gradient(low = "dodgerblue2", high = "darkorange", 
+                      labels = c("High", "Medium", "Low"), 
+                      breaks = c(3.2, 1.2, -.75)) +
+  labs(title = "Map of violations per building and total violations (converted to z-scores) by community area",
+       subtitle = "Neighbourhoods on Chicago's South and West side show large incidences of violations",
+       fill = "Scaled Values")
