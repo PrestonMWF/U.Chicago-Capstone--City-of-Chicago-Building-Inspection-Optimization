@@ -1,9 +1,11 @@
 library(tidyverse)
-library(data.table)
 library(caret)
-library(reticulate)
-library(GGally)
 library(gains)
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+library(data.table)
 
 # create function to impute data
 
@@ -47,8 +49,13 @@ impute_footprints <- function(dataset) {
         filter(community_area != 0)
     
     dataset <- dataset %>%
-        mutate(bldg_condi = ifelse(bldg_condi == "unnhabitable", 
+        mutate(bldg_condi = ifelse(bldg_condi == "", "unknown", bldg_condi),
+               bldg_condi = ifelse(bldg_condi == "unnhabitable", 
                                    "uninhabitable", bldg_condi))
+    
+    dataset$bldg_condi <- factor(dataset$bldg_condi, ordered = FALSE )
+    dataset <- within(dataset, bldg_condi <- relevel(bldg_condi, ref = 3))
+    
     dataset[is.na(dataset)] <- 0
     
     dataset$bldg_condi <- as.factor(dataset$bldg_condi)
@@ -81,6 +88,7 @@ model_set <- building_footprints_2011_2016_clean %>%
 model_set[, 19:29] <- model_set[, 19:29] / model_set$total_buildings
 model_set$total_buildings <- NULL
 
+
 # build model
 
 set.seed(1027)
@@ -106,7 +114,7 @@ summary(building_logistic)
 
 building_results <- building_train %>%
     select(complaint_violation) %>%
-    mutate(train_pred = ifelse(building_logistic$fitted.values > .024, 1, 0) %>%
+    mutate(train_pred = ifelse(building_logistic$fitted.values > .025, 1, 0) %>%
                as.numeric())
 
 confusionMatrix(as.factor(building_results$train_pred), 
@@ -166,7 +174,7 @@ decision_probs %>%
 building_test <- building_test %>%
     mutate(model_probs = predict.glm(building_logistic, 
                                      newdata = building_test, type = "response"),
-           preds = ifelse(model_probs > .024, 1, 0))
+           preds = ifelse(model_probs > .025, 1, 0))
 
 confusionMatrix(as.factor(building_test$preds), 
                 as.factor(building_test$complaint_violation), 
@@ -179,6 +187,8 @@ confusionMatrix(as.factor(building_test$preds),
 building_logistic_full <- glm(complaint_violation ~ ., 
                          data = model_set, 
                          family = binomial("logit"))
+
+summary(building_logistic_full)
 
 # convert to numeric as necessary
 
@@ -213,27 +223,41 @@ validation_set$total_buildings <- NULL
 validation_set <- validation_set %>%
     mutate(model_probs = predict.glm(building_logistic_full, 
                                      newdata = validation_set, type = "response"),
-           preds = ifelse(model_probs > .024, 1, 0))
+           preds = ifelse(model_probs > .025, 1, 0))
 
 confusionMatrix(as.factor(validation_set$preds), 
                 as.factor(validation_set$complaint_violation), 
                 positive = "1")
 
 
+# evaluate model
 
-## complaint violations
+model_set_analysis <- model_set %>% 
+    mutate(model_probs = predict(building_logistic_full, type = "response"),
+           logit = log(model_probs/(1-model_probs)))
 
-#       0      1
-# 0 310196   3893
-# 1 106635   6101
-# Balanced Accuracy : 0.67732 
 
-## any violations
+plot(model_set_analysis$complaint_violations, model_set_analysis$logit)
 
-#       0      1
-# 0 272453   3847
-# 1 141651   8874
-# Balanced Accuracy : 0.67776 
+plot(model_set_analysis$sanitation_code_address, model_set_analysis$logit)
+
+plot(model_set_analysis$bldg_sq_fo, model_set_analysis$logit)
+
+plot(model_set_analysis$hardship_index, model_set_analysis$logit)
+
+plot(model_set_analysis$shape_area, model_set_analysis$logit)
+
+plot(model_set_analysis$shape_len, model_set_analysis$logit)
+
+plot(model_set_analysis$year_built, model_set_analysis$logit)
+
+plot(model_set_analysis$permit_violations, model_set_analysis$logit)
+
+plot(model_set_analysis$registration_violations, model_set_analysis$logit)
+
+plot(model_set_analysis$alley_lights_community, model_set_analysis$logit)
+
+# checkpoint
 
 write.csv(model_set, file='model_set.csv')
 write.csv(validation_set, file='validation_set.csv')
@@ -274,6 +298,16 @@ cor(validation_set$model_probs, validation_set$lda, method = 'spearman')
 cor(validation_set$model_probs, validation_set$rf, method = 'spearman')
 cor(validation_set$lda, validation_set$rf, method = 'spearman')
 
+# compare empiracl copulas
+
+ggplot(validation_set, aes(x = rank(model_probs)/nrow(validation_set), y=rank(lda)/nrow(validation_set),
+                           color=as.factor(complaint_violation))) + geom_point(shape = 1)
+
+ggplot(validation_set, aes(x = rank(model_probs)/nrow(validation_set), y=rank(rf)/nrow(validation_set),
+                           color=as.factor(complaint_violation))) + geom_point()
+
+ggplot(validation_set, aes(x = rank(lda)/nrow(validation_set), y=rank(rf)/nrow(validation_set),
+                           color=as.factor(complaint_violation))) + geom_point()
 
 # compare RF and LDA confusion matrix
 
@@ -335,3 +369,19 @@ roc_df %>%
     labs(title = paste0("ROC curve for Building Predictions GLM in Validation (2017): AUC = ", building_auc),
          y = "1 - sensitivity (true positive rate)",
          x = "1 - specificity (false positive rate)")
+
+# save full data set
+
+building_footprints_2012_2017_clean$model_probs <- validation_set$model_probs
+building_footprints_2012_2017_clean$risk_score <- rank(validation_set$model_probs)/(length(validation_set$model_probs)+1)
+building_footprints_2012_2017_clean$X.1 <- NULL
+
+write.csv(building_footprints_2012_2017_clean, file='footprint_set_2018.csv', row.names = F)
+
+# decision tree
+
+building_tree <- rpart(complaint_violation ~ .,
+                       control = rpart.control(minsplit = 10, cp = 0.001), 
+                       data = model_set)
+
+fancyRpartPlot(building_tree)
