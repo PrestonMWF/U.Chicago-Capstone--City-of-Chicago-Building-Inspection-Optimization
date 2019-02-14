@@ -37,11 +37,23 @@ community_buildings <- building_footprints %>%
   filter(!is.na(community)) %>%
   group_by(community, community_area) %>%
   summarise(total_complaint_violations = sum(complaint_violations)) %>%
+  ungroup() %>%
   inner_join(x = .,y = community_buildings, by = "community")
 
 community_buildings <- community_buildings %>%  
   mutate(violations_per_building = round(total_complaint_violations / 
                                            total_buildings, 3))
+
+community_buildings %>%
+  top_n(25, violations_per_building) %>%
+  filter(!is.na(community)) %>%
+  mutate(community = reorder(community, violations_per_building)) %>%
+  ggplot(aes(community, violations_per_building)) +
+  geom_col(fill = "dodgerblue2") +
+  coord_flip() +
+  labs(title = "Top 25 community areas by building complaint violations per building",
+       subtitle = "West Garfield Park has most violations per building of any community area in Chicago (violations / # buildings)", 
+       x = NULL)
 
 #joining both footprints and shapes set together
 community_area_map <- community_area_map %>%
