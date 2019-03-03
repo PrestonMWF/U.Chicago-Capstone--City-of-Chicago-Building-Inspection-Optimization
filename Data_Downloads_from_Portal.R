@@ -7,6 +7,15 @@ library(dplyr) #used for manipulating data frames; filter being used to remove d
 #Utilizes Open Data API url and downloads file using read.socrata from Open Data Portal
 #General open data site url: https://data.cityofchicago.org/
 
+#0. Load data from new system for records after 12/18/2018
+
+new_311 <- read.csv('311_Service_Requests.csv') %>%
+    mutate_all(tolower) %>%
+    rename_all(tolower) %>%
+    mutate(created_date = as.Date(substr(created_date, 1, 10), format='%m/%d/%Y')) %>%
+    filter(created_date >= '2018-12-19')
+
+
 #1. Downloading data for 311 building reports
 
 url <- "https://data.cityofchicago.org/resource/yama-9had.csv"
@@ -15,6 +24,9 @@ abandoned_buildings <- read.socrata(url, stringsAsFactors = F) %>%
   filter(duplicated(service_request_number) == F) %>%
   mutate(service_set = "abandoned_buildings") %>%
   select(service_set, everything())
+
+abandoned_buildings_new <- new_311 %>%
+    filter(SR_TYPE == 'Vacant/Abandoned Building Complaint')
 
 write_csv(abandoned_buildings, 
           "311_Service_Requests_Vacant_and_abandoned_buildings.csv")
@@ -27,6 +39,9 @@ graffiti <- read.socrata(url, stringsAsFactors = F) %>%
   filter(duplicated(service_request_number) == F) %>%
   mutate(service_set = "graffiti") %>%
   select(service_set, everything())
+
+new_graffiti <- new_311 %>%
+    filter(SR_TYPE == 'Graffiti Removal Request')
 
 write_csv(graffiti, "311_Service_Requests_graffiti.csv")
 
@@ -151,6 +166,11 @@ building_violations <- read.socrata(url, stringsAsFactors = F) %>%
 
 write_csv(building_violations, "City_of_Chicago_building_violations.csv")
 
+building_violation_address <- building_violations %>%
+    select(address, id, latitude, longitude)
+
+write_csv(building_violation_address, "Building_Violation_Address.csv")
+
 #14. Downloading data for Building Ordinance Violations 
 #Reflects building code violations brought before the Chicago DOA Hearings
 #Doesn't reflect code violations brought before the Circuit Court of Cook County
@@ -161,6 +181,34 @@ ordinance_violations <- read.socrata(url, stringsAsFactors = F) %>%
   mutate_all(tolower)
 
 write_csv(ordinance_violations, "City_of_Chicago_ordinance_violations.csv")
+
+#15. Downloading building scofflaw list. These are properties where the landlord has multiple unnaddressed court cases. 
+#Updated yearly.
+
+url <- 'https://data.cityofchicago.org/resource/ve4p-h7ak.csv'
+
+scofflaw_list <- read.socrata(url, stringsAsFactors = F) %>%
+    mutate_all(tolower)
+
+write.csv(scofflaw_list, 'Scofflaw_List.csv')
+
+#16. Downloading problem landlord list. This is a list of landlords that have received two or more administrative hearings.
+
+url <- 'https://data.cityofchicago.org/resource/qjqj-a2d9.csv'
+
+problem_landlord <- read.socrata(url, stringsAsFactors = F) %>%
+    mutate_all(tolower)
+
+write.csv(problem_landlord, 'Problem_Landlords.csv')
+
+#17. Downloading socioeconomic indicators
+
+url <- 'https://data.cityofchicago.org/resource/jcxq-k9xf.csv'
+
+socioeconomic_indicators <- read.socrata(url, stringsAsFactors = F) %>%
+    mutate_all(tolower)
+
+write.csv(socioeconomic_indicators, 'Socioeconomic_Indicators.csv')
 
 #Checking that all files have been downloaded into Rproj directory
 #Downloads bring in 14 data sets from Chicago Open Data Portal
