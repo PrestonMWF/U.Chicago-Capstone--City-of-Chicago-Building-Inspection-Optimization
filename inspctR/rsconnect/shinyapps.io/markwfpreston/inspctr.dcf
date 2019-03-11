@@ -1,0 +1,12 @@
+name: inspctr
+title:
+username:
+account: markwfpreston
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 681589
+bundleId: 1929525
+url: https://markwfpreston.shinyapps.io/inspctr/
+when: 1552269458.06213
+asMultiple: FALSE
+asStatic: FALSE
