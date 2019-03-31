@@ -23,8 +23,11 @@ This script takes the data downloaded from the portal, adds in the relevant data
 ### 4) Create_Footprint_Datasets_by_Year.R
 Script to download the buildings footprint data, add additional data elements (311, violations, shapefiles, etc.) and split into the two data sets used for modelling.
 
-### 5) Updated_Risk_Score_Model_Transformed.R
+### 5) Create_Building_Complaints.R
+This script takes all 311 complaints in the new system (only available as a static download at the time of creation) and extracts just building related complaints.
+
+### 6) Updated_Risk_Score_Model_Transformed.R
 This script takes the two datasets created by Create_Footprint_Datasets_by_Year.R, creates the models, and applies them to the open complaints (currently static). Note that some unused techniques and EDA exist in the this script, and it would need to be cleaned and condensed to turn into a repeatable function.
 
-### 6) inspctR
+### 7) inspctR
 This folder contains the necessary scripts and other elements to run the shiny app that was created
