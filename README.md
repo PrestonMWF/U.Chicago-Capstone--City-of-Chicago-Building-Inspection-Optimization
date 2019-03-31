@@ -32,7 +32,7 @@ This script takes the two datasets created by Create_Footprint_Datasets_by_Year.
 ### 7) Update_Building_Complaints.R
 This script takes the risk score created by the risk score model (6), and adds it and other relevent information to the open complaints file (5).
 
-### 7) inspctR
+### 8) inspctR
 This folder contains the necessary scripts and other elements to run the shiny app that was created
 
 ### Building_footprint_eda.R
