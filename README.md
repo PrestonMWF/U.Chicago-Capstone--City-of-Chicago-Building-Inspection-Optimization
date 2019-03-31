@@ -34,3 +34,9 @@ This script takes the risk score created by the risk score model (6), and adds i
 
 ### 7) inspctR
 This folder contains the necessary scripts and other elements to run the shiny app that was created
+
+### Building_footprint_eda.R
+This is older EDA. Some of this was taken to use in the risk score model and informed our analysis.
+
+### Community_Area_Violation_Mapping.R
+This creates map based plots around the data. Also used for some EDA.
