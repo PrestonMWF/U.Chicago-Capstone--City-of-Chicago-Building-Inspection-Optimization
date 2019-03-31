@@ -29,5 +29,8 @@ This script takes all 311 complaints in the new system (only available as a stat
 ### 6) Updated_Risk_Score_Model_Transformed.R
 This script takes the two datasets created by Create_Footprint_Datasets_by_Year.R, creates the models, and applies them to the open complaints (currently static). Note that some unused techniques and EDA exist in the this script, and it would need to be cleaned and condensed to turn into a repeatable function.
 
+### 7) Update_Building_Complaints.R
+This script takes the risk score created by the risk score model (6), and adds it and other relevent information to the open complaints file (5).
+
 ### 7) inspctR
 This folder contains the necessary scripts and other elements to run the shiny app that was created
