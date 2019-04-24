@@ -16,7 +16,7 @@ def calculateObj(route, distances, dff):
     totDist = 0
 
     for i in range(1, len(route)):
-        objVal = objVal + dff[route[i]][2] - distances[route[i - 1]][route[i]]
+        objVal = objVal + 10*dff[route[i]][2] - distances[route[i - 1]][route[i]]
         totDist = totDist + distances[route[i - 1]][route[i]]
     totDist = totDist + 0.525 * len(route)
     if totDist > 8.4:
@@ -324,7 +324,7 @@ def TabuSearch(dataframe, start_lon, start_lat):
         dff.append([row['x'], row['y'], row['score']])
 
     # Iteration Count
-    ITER = 35000
+    ITER = 10000
 
     # Create the initial route
     route = initialization(distances, dff, prof, N)

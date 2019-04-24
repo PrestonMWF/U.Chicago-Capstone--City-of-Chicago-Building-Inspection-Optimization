@@ -1,12 +1,18 @@
+library(tidyverse)
 library(shiny)
 library(shinythemes)
 library(shinydashboard)
 library(leaflet)
 library(DT)
 library(reticulate)
-library(shinycssloaders)
 
-open_building_complaints <- readRDS(file = "open_building_complaints.rds")
+complaints <- read.csv("Building_Complaints_Full.csv") %>%
+  filter(status != "completed")
+
+open_building_complaints <- readRDS(file = "open_building_complaints.rds") %>%
+  filter(status != "completed")
+
+dashboard_complaints <- readRDS(file = "open_building_complaints.rds")
 
 effects_per_address <- readRDS(file = "address_coefficient_effects.rds")
 
@@ -48,7 +54,10 @@ ui <- navbarPage("inspctR", id = "nav", theme = shinytheme("cerulean"),
            h4(span("Pick your prefered starting point and schedule an optimal building inspections route", style = "color:black")),
            selectInput("opt_address", "Starting Address", multiple = FALSE, 
                        choices = complaints$street_address),
-           actionButton("optimal_route", "Schedule Optimal Route")
+           actionButton("optimal_route", "Schedule Optimal Route"),
+           hr(),
+           h5(em("Want to take your route to go? Download it below")),
+           downloadButton("download_route", "Download Route")
            )
         ),
    plotOutput("optimal_route")

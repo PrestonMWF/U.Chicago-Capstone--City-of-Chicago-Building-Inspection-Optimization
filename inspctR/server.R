@@ -8,9 +8,24 @@ library(htmltools)
 library(tidyverse)
 library(DT)
 library(reticulate)
-library(shinycssloaders)
 
 source_python("OptimalRouter.py")
+
+complaints <- read.csv("Building_Complaints_Full.csv") %>%
+  filter(status != "completed")
+
+open_building_complaints <- readRDS(file = "open_building_complaints.rds") %>%
+  filter(status != "completed")
+
+dashboard_complaints <- readRDS(file = "open_building_complaints.rds")
+
+effects_per_address <- readRDS(file = "address_coefficient_effects.rds")
+
+average_glm_effect <- readRDS(file = "average_glm_effect.rds")
+
+building_top_effects <- readRDS(file = "building_top_effects.rds")
+
+### developing lat/long finder for input addresses used for route optimization
 
 nominatim_osm <- function(address = NULL) {
   if(suppressWarnings(is.null(address)))
@@ -25,15 +40,6 @@ nominatim_osm <- function(address = NULL) {
   return(data.frame(lon = as.numeric(d$lon), lat = as.numeric(d$lat)))
 }
 
-complaints <- read.csv("Building_Complaints_Full.csv")
-
-open_building_complaints <- readRDS(file = "open_building_complaints.rds")
-
-effects_per_address <- readRDS(file = "address_coefficient_effects.rds")
-
-average_glm_effect <- readRDS(file = "average_glm_effect.rds")
-
-building_top_effects <- readRDS(file = "building_top_effects.rds")
 
 server <- function(input, output, session) {
   
@@ -66,14 +72,15 @@ server <- function(input, output, session) {
                            br(),
                            "Days Open:", open_building_complaints$days_open,
                            br(),
+                           "Model Probability:", open_building_complaints$logistic_probs %>% round(3),
+                           br(),
                            "Model Probability Percentile:", open_building_complaints$model_probs)
     
     leafletProxy("map", data = open_building_complaints) %>%
-      clearShapes() %>%
       addCircles(lng = ~longitude, lat = ~latitude, 
-                 radius = 155,
+                 radius = 125,
                  stroke = FALSE, 
-                 fillOpacity = 0.75, 
+                 fillOpacity = 0.55, 
                  popup = address_label,
                  fillColor = ~colour_pal(open_building_complaints[[colour_by]])) %>%
       addLegend("bottomleft", 
@@ -81,31 +88,40 @@ server <- function(input, output, session) {
                 values = open_building_complaints[[colour_by]], 
                 title = "Complaint is:",
                 layerId = "colorLegend")
-    
-    opt_schedule <-  eventReactive(input$optimal_route, {
-      
-      coords <- nominatim_osm(paste(input$opt_address, "Chicago, IL", collapse = ""))
-      
-      final_route <- TabuSearch(complaints, 
-                                coords$lon, 
-                                coords$lat) %>%
-        mutate(group = "tour")
-      
-      leafletProxy("map", data = open_building_complaints) %>%
-        addPolylines(data = final_route, lng = ~x, lat = ~y, group = ~group)
-      
-    })
-    
-    output$optimal_route <- renderPlot({
-      withProgress(message = "Calculating Route...",{
-        opt_schedule()
-      })
-    })
-    
-    #for connecting opt route
-    #addPolylines(data = mydf2, lng = ~long, lat = ~lat, group = ~group)
-  
   })
+  
+  opt_schedule <-  eventReactive(input$optimal_route, {
+    
+    coords <- nominatim_osm(paste(input$opt_address, "Chicago, IL", collapse = ""))
+    
+    final_route <- TabuSearch(complaints, 
+                              coords$lon, 
+                              coords$lat) %>%
+      mutate(group = "tour")
+    
+    leafletProxy("map", data = open_building_complaints) %>%
+      addPolylines(data = final_route, lng = ~x, lat = ~y, group = ~group)
+    
+  })
+  
+  output$optimal_route <- renderPlot({
+    withProgress(message = "Calculating Route...",{
+      opt_schedule()
+    })
+  })
+  
+  #### Creating download button for route
+  
+  output$download_route <- downloadHandler(
+    filename = function() {
+      paste("Optimal_inspections_route-", Sys.Date(), ".csv", sep = "")
+    },
+    content = function(file) {
+      write.csv(x = , 
+                file = file, 
+                row.names = FALSE)
+    }
+  )
   
   ### Creating Generative Table
   
@@ -147,15 +163,18 @@ server <- function(input, output, session) {
       filter(status == "open",
              days_open >= input$complaint_min,
              days_open <= input$complaint_max,
-             is.null(input$risk_category) | risk_category %in% input$risk_category,
+             is.null(input$risk_category) | model_probs %in% input$risk_category,
              is.null(input$zip_code) | zip_code %in% input$zip_code,
              is.null(input$address) | street_address %in% input$address) %>%
       arrange(desc(days_open)) %>%
       mutate(risk_percentile = round(risk_percentile, 2) * 100,
               On_Map = paste('<a class="go-map" href="" data-lat="', latitude, '" data-long="', longitude, '" data-zip="', zip_code, '"><i class="fa fa-crosshairs"></i></a>', sep="")) %>%
       select(-longitude, -latitude, -year, -month, -day) %>%
-      select(sr_number, status, street_address, zip_code, community_area, everything()) %>%
-      rename_all(function(x) str_replace_all(string = x, pattern = "_", replacement = " "))
+      select(sr_number, status, street_address, zip_code, community_area, 
+             created_date, days_open, past_21_days, model_probs, On_Map) %>%
+      rename_all(function(x) str_replace_all(string = x, 
+                                             pattern = "_", 
+                                             replacement = " "))
   })
   
   output$complaints <- DT::renderDataTable({
@@ -188,7 +207,7 @@ server <- function(input, output, session) {
   )
   
   observe({
-    months <- open_building_complaints %>%
+    months <- dashboard_complaints %>%
       filter(year %in% input$year) %>%
       `$`("month") %>%
       unique() %>%
@@ -201,7 +220,7 @@ server <- function(input, output, session) {
   })
   
   output$zip_count <- renderPlot({
-    open_building_complaints %>%
+    dashboard_complaints %>%
       filter(status ==  "open",
              is.null(input$year) | year %in% input$year,
              is.null(input$month) | month %in% input$month,
@@ -220,7 +239,7 @@ server <- function(input, output, session) {
   })
   
   output$zip_preds <- renderPlot({
-    open_building_complaints %>%
+    dashboard_complaints %>%
       filter(status ==  "open",
              is.null(input$year) | year %in% input$year,
              is.null(input$month) | month %in% input$month,
@@ -234,13 +253,13 @@ server <- function(input, output, session) {
       geom_col(fill = "darkgoldenrod1") +
       coord_flip() +
       theme(text = element_text(size = 16)) +
-      labs(title = "Top 10 Zip Codes by 80-100th Percentile Model Probability Count",
+      labs(title = "Top 10 Zip Codes by 80-100th Percentile Model Probability",
            x = NULL,
            y = "80-100th Percentile Model Probability Count")
   })
   
   output$complaint_series <- renderPlot({
-    open_building_complaints %>%
+    dashboard_complaints %>%
       filter(is.null(input$year) | year %in% input$year,
              is.null(input$month) | month %in% input$month,
              is.null(input$day_min) | day >= input$day_min,
@@ -258,7 +277,7 @@ server <- function(input, output, session) {
   })
   
   output$open_count <- renderText({ 
-    open_count <- open_building_complaints %>%
+    open_count <- dashboard_complaints %>%
       filter(is.null(input$year) | year %in% input$year,
              is.null(input$month) | month %in% input$month,
              is.null(input$day_min) | day >= input$day_min,
@@ -269,7 +288,7 @@ server <- function(input, output, session) {
   })
   
   output$closed_count <- renderText({ 
-    closed_count <- open_building_complaints %>%
+    closed_count <- dashboard_complaints %>%
       filter(is.null(input$year) | year %in% input$year,
              is.null(input$month) | month %in% input$month,
              is.null(input$day_min) | day >= input$day_min,
