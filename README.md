@@ -33,7 +33,7 @@ This script takes the two datasets created by Create_Footprint_Datasets_by_Year.
 This script takes the risk score created by the risk score model (6), and adds it and other relevent information to the open complaints file (5).
 
 ### 8) inspctR
-This folder contains the necessary scripts and other elements to run the shiny app that was created
+This folder contains the necessary scripts and other elements to run the shiny app that was created. Acccess application: https://markwfpreston.shinyapps.io/inspctr/. Of note, the web version does not include the optimization program given it accessess python, which is not available on the Shiny server.
 
 ### Building_footprint_eda.R
 This is older EDA. Some of this was taken to use in the risk score model and informed our analysis.
